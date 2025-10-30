@@ -124,7 +124,7 @@ function App() {
   });
   const [isMeetingsLoading, setIsMeetingsLoading] = useState(false);
   const [meetingsError, setMeetingsError] = useState<string | null>(null);
-  const [meetingsLoaded, setMeetingsLoaded] = useState(false);
+  const [meetingsLoaded, setMeetingsLoaded] = useState(false); // Cache flag
   const [recordingNotes, setRecordingNotes] = useState('');
   const [meetingTitle, setMeetingTitle] = useState('');
   const lastProcessedSizeRef = useRef<number>(0);
@@ -309,18 +309,18 @@ const [recordingReminderToast, setRecordingReminderToast] = useState<{ message: 
     }
   }, [user]);
 
-  // Recharger les réunions quand on navigue vers certaines vues (uniquement si pas déjà chargé)
+  // Recharger les réunions quand on navigue vers certaines vues
   useEffect(() => {
-    if (user && !meetingsLoaded && (view === 'record' || view === 'history' || view === 'dashboard')) {
-      console.log('🔄 Vue changée vers', view, '- chargement initial des réunions');
-      loadMeetings();
+    if (user && (view === 'record' || view === 'history' || view === 'dashboard')) {
+      console.log('🔄 Vue changée vers', view, '- rechargement des réunions si nécessaire');
+      loadMeetings(); // Ceci ne fera rien si déjà chargé (sauf si forceReload=true)
     }
     // Forcer le rechargement de la config email quand on navigue vers Contact
     if (view === 'contact') {
       console.log('🔄 Navigation vers Contact, trigger de rechargement de la config');
       setContactReloadTrigger(prev => prev + 1);
     }
-  }, [view, user, meetingsLoaded]);
+  }, [view, user]);
 
   // Gestion de la navigation avec le bouton retour du navigateur et changement de hash
   useEffect(() => {
@@ -565,31 +565,15 @@ const [recordingReminderToast, setRecordingReminderToast] = useState<{ message: 
     }
   };
 
-  const invalidateMeetingsCache = () => {
-    if (user) {
-      try {
-        const cacheKey = `meetings_cache_${user.id}`;
-        const cacheTimestampKey = `meetings_cache_timestamp_${user.id}`;
-        localStorage.removeItem(cacheKey);
-        localStorage.removeItem(cacheTimestampKey);
-        console.log('🗑️ Cache des réunions invalidé');
-      } catch (e) {
-        console.warn('⚠️ Erreur invalidation cache:', e);
-      }
-    }
-  };
-
   const handleLogout = async () => {
-    invalidateMeetingsCache();
     await supabase.auth.signOut();
     setUser(null);
     setMeetings([]);
-    setMeetingsLoaded(false);
     setView('landing');
   };
 
   const loadMeetings = async (forceReload = false) => {
-
+    
     if (!user) {
       console.log('⚠️ loadMeetings: Pas d\'utilisateur connecté');
       setMeetings([]);
@@ -597,48 +581,18 @@ const [recordingReminderToast, setRecordingReminderToast] = useState<{ message: 
       return;
     }
 
-    // Clé de cache basée sur l'utilisateur
-    const cacheKey = `meetings_cache_${user.id}`;
-    const cacheTimestampKey = `meetings_cache_timestamp_${user.id}`;
-
-    // Si pas de force reload, essayer de charger depuis le cache
-    if (!forceReload) {
-      // Vérifier si les données sont déjà en mémoire
-      if (meetingsLoaded && meetings.length > 0) {
-        console.log('📋 Réunions déjà en mémoire, skip reload');
-        return;
-      }
-
-      // Vérifier le cache localStorage
-      try {
-        const cachedData = localStorage.getItem(cacheKey);
-        const cachedTimestamp = localStorage.getItem(cacheTimestampKey);
-
-        if (cachedData && cachedTimestamp) {
-          const cacheAge = Date.now() - parseInt(cachedTimestamp, 10);
-          const maxAge = 5 * 60 * 1000; // Cache valide pendant 5 minutes
-
-          if (cacheAge < maxAge) {
-            const parsedMeetings = JSON.parse(cachedData) as Meeting[];
-            console.log(`📋 Chargement depuis cache (${Math.round(cacheAge / 1000)}s), ${parsedMeetings.length} réunions`);
-            setMeetings(parsedMeetings);
-            setMeetingsLoaded(true);
-            return;
-          } else {
-            console.log('⏰ Cache expiré, rechargement nécessaire');
-          }
-        }
-      } catch (e) {
-        console.warn('⚠️ Erreur lecture cache:', e);
-      }
+    // Si déjà chargé et pas de force reload, skip
+    if (meetingsLoaded && !forceReload) {
+      console.log('📋 Réunions déjà en cache, skip reload');
+      return;
     }
 
     setIsMeetingsLoading(true);
     setMeetingsError(null);
-
+    
     try {
-      console.log('📋 Chargement des réunions depuis la base pour user:', user.id);
-
+      console.log('📋 Chargement des réunions pour user:', user.id);
+      
     const { data, error } = await supabase
       .from('meetings')
       .select(`
@@ -659,7 +613,7 @@ const [recordingReminderToast, setRecordingReminderToast] = useState<{ message: 
       `)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(100);
+      .limit(100); // Charger max 100 réunions récentes
 
       if (error) {
         console.error('❌ Erreur chargement réunions:', error);
@@ -669,7 +623,7 @@ const [recordingReminderToast, setRecordingReminderToast] = useState<{ message: 
         return;
       }
 
-      console.log(`✅ ${data?.length || 0} réunions chargées depuis la base`);
+      console.log(`✅ ${data?.length || 0} réunions chargées`);
       const normalizedMeetings = (data || []).map((item) => ({
         ...item,
         transcript: null,
@@ -678,17 +632,8 @@ const [recordingReminderToast, setRecordingReminderToast] = useState<{ message: 
       })) as Meeting[];
 
       setMeetings(normalizedMeetings);
-      setMeetingsLoaded(true);
-
-      // Sauvegarder dans le cache localStorage
-      try {
-        localStorage.setItem(cacheKey, JSON.stringify(normalizedMeetings));
-        localStorage.setItem(cacheTimestampKey, Date.now().toString());
-        console.log('💾 Réunions sauvegardées dans le cache');
-      } catch (e) {
-        console.warn('⚠️ Erreur sauvegarde cache:', e);
-      }
-
+      setMeetingsLoaded(true); // Marquer comme chargé
+      
     } catch (e) {
       console.error('❌ Exception chargement réunions:', e);
       setMeetingsError('Erreur lors du chargement des réunions: ' + (e as Error).message);
@@ -944,24 +889,9 @@ const [recordingReminderToast, setRecordingReminderToast] = useState<{ message: 
       .eq('id', id);
 
     if (!error) {
-      // Mettre à jour l'état et le cache
-      setMeetings(prevMeetings => {
-        const updatedMeetings = prevMeetings.filter(m => m.id !== id);
-
-        // Mettre à jour le cache localStorage
-        if (user) {
-          try {
-            const cacheKey = `meetings_cache_${user.id}`;
-            localStorage.setItem(cacheKey, JSON.stringify(updatedMeetings));
-            localStorage.setItem(`meetings_cache_timestamp_${user.id}`, Date.now().toString());
-            console.log('💾 Cache mis à jour après suppression');
-          } catch (e) {
-            console.warn('⚠️ Erreur mise à jour cache:', e);
-          }
-        }
-
-        return updatedMeetings;
-      });
+      // Ne pas recharger immédiatement, laisser l'animation se terminer
+      // Le rechargement se fera automatiquement via l'état
+      setMeetings(prevMeetings => prevMeetings.filter(m => m.id !== id));
     }
   };
 
