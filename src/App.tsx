@@ -1444,7 +1444,7 @@ const [recordingReminderToast, setRecordingReminderToast] = useState<{ message: 
               }`}
             >
               <Mail className="w-4 h-4 md:w-5 md:h-5" />
-              <span>Support</span>
+              <span>Contact</span>
             </button>
           </div>
         </nav>
