@@ -91,7 +91,7 @@ function App() {
     }
 
     // Si un hash valide existe, l'utiliser
-    if (hash && ['record', 'history', 'detail', 'settings', 'upload', 'dashboard', 'contact'].includes(hash)) {
+    if (hash && ['record', 'history', 'detail', 'settings', 'upload', 'dashboard', 'support'].includes(hash)) {
       return hash as any;
     }
 
@@ -99,7 +99,7 @@ function App() {
     return 'landing' as const;
   };
 
-  const [view, setView] = useState<'landing' | 'auth' | 'record' | 'history' | 'detail' | 'settings' | 'upload' | 'dashboard' | 'gmail-callback' | 'contact'>(getInitialView());
+  const [view, setView] = useState<'landing' | 'auth' | 'record' | 'history' | 'detail' | 'settings' | 'upload' | 'dashboard' | 'gmail-callback' | 'support'>(getInitialView());
   const [historyTab, setHistoryTab] = useState<'meetings' | 'emails'>('meetings'); // Onglet d'historique
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
@@ -139,7 +139,7 @@ function App() {
   const [showQuotaFullModal, setShowQuotaFullModal] = useState(false);
   const [showMobileVisioTip, setShowMobileVisioTip] = useState(false);
   const [pendingVisioRecording, setPendingVisioRecording] = useState(false);
-  const [contactReloadTrigger, setContactReloadTrigger] = useState(0);
+  const [supportReloadTrigger, setSupportReloadTrigger] = useState(0);
   const [showLongRecordingReminder, setShowLongRecordingReminder] = useState(false);
   const [showRecordingLimitModal, setShowRecordingLimitModal] = useState(false);
 const [recordingReminderToast, setRecordingReminderToast] = useState<{ message: string } | null>(null);
@@ -270,7 +270,7 @@ const [recordingReminderToast, setRecordingReminderToast] = useState<{ message: 
 
     // Restaurer la vue depuis l'URL (hash) au chargement
     const hash = window.location.hash.replace('#', '');
-    if (hash && ['record', 'history', 'upload', 'settings', 'dashboard', 'contact'].includes(hash)) {
+    if (hash && ['record', 'history', 'upload', 'settings', 'dashboard', 'support'].includes(hash)) {
       console.log('🔄 Restauration de la vue depuis l\'URL:', hash);
       setView(hash as any);
     } else if (hash === 'detail') {
@@ -291,7 +291,7 @@ const [recordingReminderToast, setRecordingReminderToast] = useState<{ message: 
       if (session?.user && event === 'SIGNED_IN') {
         // Si on a déjà une vue depuis l'URL, ne pas la changer
         const currentHash = window.location.hash.replace('#', '');
-        if (!currentHash || !['record', 'history', 'upload', 'settings', 'dashboard', 'contact'].includes(currentHash)) {
+        if (!currentHash || !['record', 'history', 'upload', 'settings', 'dashboard', 'support'].includes(currentHash)) {
           setView('record');
           window.history.replaceState({ view: 'record' }, '', '#record');
         }
@@ -315,10 +315,10 @@ const [recordingReminderToast, setRecordingReminderToast] = useState<{ message: 
       console.log('🔄 Vue changée vers', view, '- rechargement des réunions si nécessaire');
       loadMeetings(); // Ceci ne fera rien si déjà chargé (sauf si forceReload=true)
     }
-    // Forcer le rechargement de la config email quand on navigue vers Contact
-    if (view === 'contact') {
-      console.log('🔄 Navigation vers Contact, trigger de rechargement de la config');
-      setContactReloadTrigger(prev => prev + 1);
+    // Forcer le rechargement de la config email quand on navigue vers Support
+    if (view === 'support') {
+      console.log('🔄 Navigation vers Support, trigger de rechargement de la config');
+      setSupportReloadTrigger(prev => prev + 1);
     }
   }, [view, user]);
 
@@ -330,7 +330,7 @@ const [recordingReminderToast, setRecordingReminderToast] = useState<{ message: 
       if (!state || !state.view) {
         // Essayer de lire depuis le hash si pas d'état
         const hash = window.location.hash.replace('#', '');
-        if (hash && ['record', 'history', 'upload', 'settings', 'dashboard', 'contact'].includes(hash)) {
+        if (hash && ['record', 'history', 'upload', 'settings', 'dashboard', 'support'].includes(hash)) {
           console.log('🔄 Restauration depuis hash:', hash);
           setView(hash as any);
         } else if (hash === 'detail') {
@@ -358,7 +358,7 @@ const [recordingReminderToast, setRecordingReminderToast] = useState<{ message: 
 
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
-      if (hash && ['record', 'history', 'upload', 'settings', 'dashboard', 'contact'].includes(hash)) {
+      if (hash && ['record', 'history', 'upload', 'settings', 'dashboard', 'support'].includes(hash)) {
         console.log('🔄 Hash changé:', hash);
         setView(hash as any);
       } else if (hash === 'detail') {
@@ -1434,17 +1434,17 @@ const [recordingReminderToast, setRecordingReminderToast] = useState<{ message: 
             </button>
             <button
               onClick={() => {
-                setView('contact');
-                window.location.hash = 'contact';
+                setView('support');
+                window.location.hash = 'support';
               }}
               className={`flex-1 md:w-full flex items-center justify-center md:justify-start gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-3 rounded-xl font-semibold transition-all text-sm md:text-base whitespace-nowrap ${
-                view === 'contact'
+                view === 'support'
                   ? 'bg-gradient-to-r from-coral-500 to-coral-600 text-white shadow-lg shadow-coral-500/30'
                   : 'text-cocoa-700 hover:bg-orange-50'
               }`}
             >
               <Mail className="w-4 h-4 md:w-5 md:h-5" />
-              <span>Contact</span>
+              <span>Support</span>
             </button>
           </div>
         </nav>
@@ -1901,12 +1901,12 @@ const [recordingReminderToast, setRecordingReminderToast] = useState<{ message: 
             />
           ) : view === 'settings' ? (
             <Settings userId={user?.id || ''} />
-          ) : view === 'contact' ? (
+          ) : view === 'support' ? (
             <div className="max-w-4xl mx-auto">
-              <ContactSupport 
-                userId={user?.id || ''} 
-                userEmail={user?.email || ''} 
-                reloadTrigger={contactReloadTrigger}
+              <ContactSupport
+                userId={user?.id || ''}
+                userEmail={user?.email || ''}
+                reloadTrigger={supportReloadTrigger}
               />
             </div>
           ) : view === 'dashboard' ? (
